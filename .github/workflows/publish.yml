@@ -1,0 +1,115 @@
+# bgmcp → npm 自动发布
+# 触发：① 手动（Actions 页面 Run workflow）② 推送 v* tag
+# 版本门：tag 触发时版本取 refs/tags/v 之后的部分，手动触发时取 package.json 的 version；
+#   仅「x.y.z 三段纯数字」允许发布，含字母（如 0.2.1-alpha.1）输出 notice 并跳过 publish。
+# 前置：仓库 Secrets 需配置 NPM_TOKEN（npm 账号 Access Token，publish 权限）。
+#
+# 为什么需要在兄弟目录准备 bgjobs：
+#   本包 devDependencies 里有 "bgjobs": "link:../bgjobs"，pnpm 在 install 时会把这个相对路径
+#   解析到「工作区根目录的上一级」。CI 里工作区根目录就是本仓库本身，因此必须把
+#   bitsmug/dsh-bgjobs 克隆到兄弟目录 bgjobs，link: 依赖才能解析。
+#   actions/checkout 只允许检出到工作区内（path: ../bgjobs 属于越界写法，不被支持），
+#   所以这里用 shell 的 git clone 落到 ../bgjobs；外层的 windows runner 已带 git 与 bash。
+#   另外 bgjobs 自身的运行时依赖也要就位，否则本包 import 它会因缺依赖失败，
+#   故在其目录再跑一次 pnpm install。
+
+name: publish
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  check:
+    # bgmcp 依赖 Windows 语义（bgjobs 的 schtasks 托管），测试与构建都按 Windows 校验
+    runs-on: windows-latest
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version and gate on pure numeric x.y.z
+        id: check
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version="${GITHUB_REF#refs/tags/v}"
+          else
+            version="$(node -p "require('./package.json').version")"
+          fi
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "version=${version}" >> "$GITHUB_OUTPUT"
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "Pure numeric version ${version} -> will publish"
+          else
+            echo "version=${version}" >> "$GITHUB_OUTPUT"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Version ${version} contains non-numeric segments; auto-publish skipped (tag/prerelease builds are manual only)."
+          fi
+
+  publish:
+    needs: check
+    if: needs.check.outputs.should_publish == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare sibling bgjobs repo for link dependency
+        # link:../bgjobs 在 install 时解析，必须早于任何 pnpm install 存在；
+        # 用 shell clone 而非 checkout 的 path，因为检出目标不能越出工作区根目录。
+        shell: bash
+        run: |
+          git clone --depth 1 https://github.com/bitsmug/dsh-bgjobs.git ../bgjobs
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Install deps (workspace root)
+        run: pnpm install
+
+      - name: Install deps (sibling bgjobs)
+        # 用 --dir 指定兄弟目录，等价于在 ../bgjobs 内执行 install；
+        # 避免 working-directory 指向工作区外，语义与 cd ../bgjobs && pnpm install 一致。
+        shell: bash
+        run: pnpm --dir ../bgjobs install
+
+      - name: Rebuild client bundle and guard against drift
+        # 产物 lib/client.js 提交入库：发布前重建源码，若与已提交产物不一致则失败，
+        # 防止 npm 发出过期/错位的面板 bundle。
+        shell: bash
+        run: |
+          pnpm build:client
+          if ! git diff --exit-code --quiet -- lib/client.js; then
+            echo "::error::lib/client.js differs from lib/client-src build output — run pnpm build:client and commit the artifact"
+            exit 1
+          fi
+          echo "client bundle in sync with source"
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Verify tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          tag="${GITHUB_REF#refs/tags/v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::tag v${tag} != package version ${pkg}"
+            exit 1
+          fi
+          echo "Publishing bgmcp@${pkg}"
+
+      - name: Publish to npm
+        run: pnpm publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

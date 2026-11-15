@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: true
+# bgmcp 插件（独立目录，非 harness workspace 成员）。
+# pnpm 10+ 不再读 package.json 的 "pnpm" 字段；构建脚本白名单移到此处。
+onlyBuiltDependencies:
+  - esbuild

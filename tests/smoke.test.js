@@ -13,7 +13,7 @@ import { createMcpRegistry, mcpHubPaths } from '../lib/registry.js'
 import { createProxy } from '../lib/proxy.js'
 
 test('包入口导出骨架与各模块工厂', () => {
-  assert.equal(pkg.name, 'bgmcp')
+  assert.equal(pkg.name, 'bgjob-mcp')
   assert.equal(typeof pkg.apply, 'function')
   assert.deepEqual(pkg.inject, ['tools', 'bgjobEngines', 'bgjobs'])
   for (const fn of ['createMcpEngine', 'createMcpTools', 'createRoutes', 'createMcpRegistry', 'createMcp', 'createProxy', 'createMcpPrewarm']) {
@@ -33,9 +33,9 @@ test('client bundle 导出可直接加载的插件对象（apply 为函数）', 
   try {
     new Function('require', code)(requireStub)
     assert.ok(registration, 'bundle 应通过 window.__ModuleLoader__.load 注册')
-    assert.equal(registration.id, 'bgmcp')
+    assert.equal(registration.id, 'bgjob-mcp')
     const plugin = registration.factory(requireStub)
-    assert.equal(plugin.name, 'bgmcp-client')
+    assert.equal(plugin.name, 'bgjob-mcp-client')
     assert.deepEqual(plugin.inject, ['slots'])
     assert.equal(typeof plugin.apply, 'function')
   } finally {

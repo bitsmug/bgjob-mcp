@@ -1,7 +1,7 @@
-# bgmcp bundle patch — 把插件行插入 profile 的层栈。
-# name 必须是包根名 `bgmcp`：host 半走 exports["."]，
+# bgjob-mcp bundle patch — 把插件行插入 profile 的层栈。
+# name 必须是包根名 `bgjob-mcp`：host 半走 exports["."]，
 # client 半由 package.json 的 dsh.client 声明（client-modules
 # 按 "<name>/package.json" 定位，子路径条目名会解析不到）。
 - insert:
     - id: bgjob-engine-mcp
-      name: bgmcp
+      name: bgjob-mcp

@@ -1,9 +1,9 @@
-# bgmcp — MCP 控制面与 `mcp` 后台任务引擎
+# bgjob-mcp — MCP 控制面与 `mcp` 后台任务引擎
 
-[![npm version](https://img.shields.io/npm/v/bgmcp)](https://www.npmjs.com/package/bgmcp)
+[![npm version](https://img.shields.io/npm/v/bgjob-mcp)](https://www.npmjs.com/package/bgjob-mcp)
 [![GitHub tag](https://img.shields.io/github/v/tag/bitsmug/dsh-bgmcp)](https://github.com/bitsmug/dsh-bgmcp/tags)
 [![publish](https://github.com/bitsmug/dsh-bgmcp/actions/workflows/publish.yml/badge.svg)](https://github.com/bitsmug/dsh-bgmcp/actions/workflows/publish.yml)
-[![License](https://img.shields.io/npm/l/bgmcp)](LICENSE)
+[![License](https://img.shields.io/npm/l/bgjob-mcp)](LICENSE)
 
 bgjobs 的可选扩展插件：把 **一次 MCP 工具调用** 提交成由 `schtasks` 托管的后台任务，并提供 MCP server 的登记、预热与设置页。
 
@@ -24,12 +24,12 @@ bgjobs 的可选扩展插件：把 **一次 MCP 工具调用** 提交成由 `sch
 
 ## 安装
 
-**插件管理器**：在 DSH 插件的「添加插件」里输入 `bgmcp`。
+**插件管理器**：在 DSH 插件的「添加插件」里输入 `bgjob-mcp`。
 
 **CLI**：
 
 ```sh
-dsh plugin --profile <profile> add bgmcp
+dsh plugin --profile <profile> add bgjob-mcp
 ```
 
 **本地源码**：把仓库放到插件目录，并在 profile 的 `cordis.patch.yml` 追加：
@@ -37,7 +37,7 @@ dsh plugin --profile <profile> add bgmcp
 ```yaml
 - insert:
     - id: bgjob-engine-mcp
-      name: bgmcp
+      name: bgjob-mcp
 ```
 
 装完需**完全退出并重启 DSH**。`name` 必须是包根名（client 半由 `package.json` 的 `dsh.client` 定位）。

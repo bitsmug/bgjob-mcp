@@ -8,7 +8,7 @@
 import { build } from 'esbuild'
 import { writeFileSync } from 'node:fs'
 
-const BANNER = "window.__ModuleLoader__.load({ id: 'bgmcp', factory: (require) => {\nvar module = { exports: {} };\nvar exports = module.exports;\n"
+const BANNER = "window.__ModuleLoader__.load({ id: 'bgjob-mcp', factory: (require) => {\nvar module = { exports: {} };\nvar exports = module.exports;\n"
 const FOOTER = "\nreturn module.exports;\n} });\n"
 
 const result = await build({

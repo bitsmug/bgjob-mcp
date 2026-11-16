@@ -107,7 +107,7 @@ jobs:
             echo "::error::tag v${tag} != package version ${pkg}"
             exit 1
           fi
-          echo "Publishing bgmcp@${pkg}"
+          echo "Publishing bgjob-mcp@${pkg}"
 
       - name: Publish to npm
         run: pnpm publish --no-git-checks

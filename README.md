@@ -65,8 +65,8 @@ dsh plugin --profile <profile> add bgmcp
 
 三个钩子：
 
-- `resolve` — 解析 node、把 server/tool/arguments/timeout 与（可选的）预热回环端点写成任务自包含 spec
-- `buildMeta` — 产出 `meta.mcp`（server / tool / transport / prewarm），并把 spec 落盘为 `mcp.json`；沙箱开启时在提交期调一次 `sandbox.confine()`，把 server 的启动 argv 烘焙成 `spec.serverLaunch`
+- `resolve` — 解析 node、把 server/tool/arguments/timeout 与（可选的）预热回环端点写成任务自包含 spec；沙箱开启时在提交期调一次 `sandbox.confine()`，把 server 的启动 argv 烘焙成 `spec.serverLaunch`
+- `buildMeta` — 产出 `meta.mcp`（server / tool / transport / prewarm），并把 spec 落盘为 `mcp.json`（**同步**返回：bgjobs 0.4.1-beta 不 await 这个钩子）
 - `buildDescriptor` — `{ m: 'direct', e: 'pwsh', o: 'utf8', c: "& '<node>' '<runner>' '<spec>'" }`：为了直跑 node 且不扩描述符引擎枚举，用 pwsh 包一层
 
 任务目录与 bgjobs 一致：`<workdir>\.dsh\bgjobs\<jobId>\`，其中 `mcp.json` 是 runner 的输入、`result.json` 记录结果；`job.json` / `cmd.ps1` 分别是任务记录与命令记录（仅供人读），不再生成 `cmd.bat` / `run.bat` / `launch.vbs`。

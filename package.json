@@ -1,6 +1,6 @@
 {
   "name": "bgmcp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "DSH MCP 控制面插件：MCP 服务器登记/预热/回环代理与 bgjob mcp engine（依赖 bgjobs 的 engine registry）。",
   "type": "module",
   "license": "MIT",

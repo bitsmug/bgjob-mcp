@@ -97,7 +97,8 @@ test('submitJob(engine=mcp)：描述符链落盘 mcp.json / cmd.ps1 并登记任
       assert.equal(meta.logCodePage, 65001)
       assert.equal(meta.mcp.server, 'demo')
       assert.equal(meta.recordPath, path.join(jobDir, 'cmd.ps1'))
-      assert.deepEqual(meta.pidFiles.map((p) => p.name), ['run.pid', 'mcp-server.pid'])
+      // pidFiles 是引擎契约声明（宿主版本决定是否复写进 meta）⇒ 直接看注册表里的那一份。
+      assert.deepEqual(ctx.get('bgjobEngines').get('mcp').pidFiles.map((p) => p.name), ['run.pid', 'mcp-server.pid'])
       assert.equal(JSON.parse(await fsp.readFile(path.join(jobDir, 'mcp.json'), 'utf8')).tool, 'echo')
       assert.match(await fsp.readFile(path.join(jobDir, 'cmd.ps1'), 'utf8'), /mcp: demo/)
     } finally {

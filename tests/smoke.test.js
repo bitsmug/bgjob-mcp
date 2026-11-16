@@ -190,7 +190,10 @@ test('engine：mcp.json 落盘 + 描述符 direct/pwsh/utf8 + pid 优先级', as
     const engine = createMcpEngine({ prewarm: null, runnerPath: RUNNER_PATH })
     const spec = { transport: 'stdio', command: 'node', args: ['srv.js'], server: 'demo', tool: 'echo', arguments: { text: 'hi' } }
     const base = { jsonPath: path.join(dir, 'job.json'), workdir: dir, taskName: 'dsh-bgj-test' }
-    const meta = { ...base, ...(await engine.buildMeta(null, base, { nodeExe: NODE_EXE, nodeExeVersion: '24.0.0', spec })) }
+    const engineMeta = engine.buildMeta(null, base, { nodeExe: NODE_EXE, nodeExeVersion: '24.0.0', spec })
+    // bgjobs 0.4.1-beta 的 buildMeta 是同步调用（不 await）⇒ 必须返回普通对象而不是 Promise。
+    assert.equal(typeof engineMeta.then, 'undefined')
+    const meta = { ...base, ...engineMeta }
     assert.equal(meta.recordPath, path.join(dir, 'cmd.ps1'))
     assert.equal(meta.mcp.server, 'demo')
     assert.deepEqual(JSON.parse(await fsp.readFile(path.join(dir, 'mcp.json'), 'utf8')), spec)
@@ -213,29 +216,35 @@ test('engine 沙箱：提交期把 server 包进 confined argv；缺服务/非 e
     const engine = createMcpEngine({ prewarm: null, runnerPath: RUNNER_PATH })
     const spec = { transport: 'stdio', command: process.execPath, args: ['srv.js'], server: 'demo', tool: 'echo' }
     const base = { jsonPath: path.join(dir, 'job.json'), workdir: dir, taskName: 't', sandbox: 'workspace-write' }
+    const extra = { mcpSpec: spec, sandboxMode: 'workspace-write' }
     const calls = []
     const ctx = {
       get: (name) => (name === 'sandbox'
         ? { confine: async (argv, policy) => { calls.push({ argv, policy }); return { argv: ['wxc.exe', '--config-base64', 'x', '--'].concat(argv), enforcement: 'partial' } } }
         : undefined),
     }
-    const meta = await engine.buildMeta(ctx, base, { nodeExe: NODE_EXE, nodeExeVersion: '24.0.0', spec })
+    // confine 在 resolve（两种 bgjobs 契约都 await）里施加，结果烘进 spec.serverLaunch
+    const resolveOut = await engine.resolve(ctx, { workdir: dir, extra })
     assert.equal(calls.length, 1)
     assert.deepEqual(calls[0].policy, { mode: 'workspace-write', workspaceRoot: dir })
     assert.equal(calls[0].argv[0], process.execPath)
+    const meta = engine.buildMeta(ctx, base, resolveOut)
     assert.equal(meta.enforcement, 'partial')
     const written = JSON.parse(await fsp.readFile(path.join(dir, 'mcp.json'), 'utf8'))
     assert.equal(written.serverLaunch.command, 'wxc.exe')
     assert.deepEqual(written.serverLaunch.args.slice(0, 3), ['--config-base64', 'x', '--'])
 
     // 没有 sandbox 服务 ⇒ 提交失败（不得静默降级为不沙箱）
-    const noSvc = await engine.buildMeta(null, base, { nodeExe: NODE_EXE, nodeExeVersion: '24.0.0', spec: { ...spec } })
+    const noSvc = await engine.resolve(null, { workdir: dir, extra })
     assert.match(noSvc.error, /ctx\.sandbox/)
     // 解析不到原生 .exe（如 npx.cmd）⇒ 提交失败
-    const shell = await engine.buildMeta(ctx, base, { nodeExe: NODE_EXE, nodeExeVersion: '24.0.0', spec: { ...spec, command: 'npx -y third-party-mcp' } })
+    const shell = await engine.resolve(ctx, { workdir: dir, extra: { ...extra, mcpSpec: { ...spec, command: 'npx -y third-party-mcp' } } })
     assert.match(shell.error, /native \.exe/)
     // streamable-http 不起进程 ⇒ 不需要 serverLaunch，也不要求 sandbox 服务
-    const http = await engine.buildMeta(null, base, { nodeExe: NODE_EXE, nodeExeVersion: '24.0.0', spec: { transport: 'streamable-http', url: 'http://127.0.0.1:1/mcp', server: 'demo', tool: 'echo' } })
+    const http = engine.buildMeta(null, base, await engine.resolve(null, {
+      workdir: dir,
+      extra: { ...extra, mcpSpec: { transport: 'streamable-http', url: 'http://127.0.0.1:1/mcp', server: 'demo', tool: 'echo' } },
+    }))
     assert.equal(http.mcp.transport, 'streamable-http')
     assert.equal(http.enforcement, undefined)
   } finally {
